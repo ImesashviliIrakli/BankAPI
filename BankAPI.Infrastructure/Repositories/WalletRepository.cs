@@ -1,6 +1,8 @@
 ﻿using BankAPI.Domain.Entities.Bank;
+using BankAPI.Domain.Enums;
 using BankAPI.Domain.Interfaces.Repositories;
 using BankAPI.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankAPI.Infrastructure.Repositories
 {
@@ -12,27 +14,64 @@ namespace BankAPI.Infrastructure.Repositories
             _context = context;
         }
 
+        public async Task<List<Wallet>> GetAccounts(string userId)
+        {
+            try
+            {
+                List<Wallet> wallets = await _context.Wallets.Where(x => x.UserId == userId).ToListAsync();
+
+                return wallets;
+            }
+            catch (Exception)
+            {
+                return new List<Wallet>();
+            }
+        }
+
+        public async Task<Wallet> GetAccountByCurrency(string userId, string currency)
+        {
+            try
+            {
+                Wallet userWallet = await _context.Wallets.FirstOrDefaultAsync(x => x.UserId == userId && x.Currency == currency);
+
+                return userWallet;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
         public async Task<bool> CreateWallet(string userId)
         {
             try
             {
+                List<Wallet> newWallets = new List<Wallet>();
+
                 if (string.IsNullOrEmpty(userId))
                 {
                     return false;
                 }
 
-                Wallet wallet = new()
-                {
-                    UserId = userId,
-                    AccountNumber = Guid.NewGuid().ToString()
-                };
+                string accountNumber = Guid.NewGuid().ToString();
 
-                await _context.Wallets.AddAsync(wallet);
+                foreach (Currency currency in Enum.GetValues(typeof(Currency)))
+                {
+                    Wallet newWallet = new()
+                    {
+                        UserId = userId,
+                        AccountNumber = accountNumber,
+                        Currency = currency.ToString()
+                    };
+
+                    await _context.Wallets.AddAsync(newWallet);
+                }
+
                 await _context.SaveChangesAsync();
 
                 return true;
             }
-            catch(Exception)
+            catch (Exception)
             {
                 return false;
             }
