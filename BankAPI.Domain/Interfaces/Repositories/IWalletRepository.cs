@@ -5,7 +5,8 @@ namespace BankAPI.Domain.Interfaces.Repositories
     public interface IWalletRepository
     {
         Task<List<Wallet>> GetAccounts(string userId);
-        Task<Wallet> GetAccountByCurrency(string userId, string currency);
-        Task<bool> CreateWallet(string userId);
+        Task<List<Wallet>> GetAccountsByCurrency(string userId, string currency);
+        Task<Wallet> GetAccountByNumber(string accountNumber, string currency);
+        Task<List<Wallet>> CreateWallet(string userId);
     }
 }

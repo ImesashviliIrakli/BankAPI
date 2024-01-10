@@ -28,29 +28,29 @@ namespace BankAPI.Infrastructure.Repositories
             }
         }
 
-        public async Task<Wallet> GetAccountByCurrency(string userId, string currency)
+        public async Task<List<Wallet>> GetAccountsByCurrency(string userId, string currency)
         {
             try
             {
-                Wallet userWallet = await _context.Wallets.FirstOrDefaultAsync(x => x.UserId == userId && x.Currency == currency);
+                List<Wallet> userWallet = await _context.Wallets.Where(x => x.UserId == userId && x.Currency == currency).ToListAsync();
 
                 return userWallet;
             }
             catch (Exception)
             {
-                return null;
+                return new List<Wallet>();
             }
         }
 
-        public async Task<bool> CreateWallet(string userId)
+        public async Task<List<Wallet>> CreateWallet(string userId)
         {
             try
             {
-                List<Wallet> newWallets = new List<Wallet>();
+                List<Wallet> newWalletList = new List<Wallet>();
 
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return false;
+                    return newWalletList;
                 }
 
                 string accountNumber = Guid.NewGuid().ToString();
@@ -64,16 +64,32 @@ namespace BankAPI.Infrastructure.Repositories
                         Currency = currency.ToString()
                     };
 
+                    newWalletList.Add(newWallet);
+
                     await _context.Wallets.AddAsync(newWallet);
                 }
 
                 await _context.SaveChangesAsync();
 
-                return true;
+                return newWalletList;
             }
             catch (Exception)
             {
-                return false;
+                return new List<Wallet>();
+            }
+        }
+
+        public async Task<Wallet> GetAccountByNumber(string accountNumber, string currency)
+        {
+            try
+            {
+                Wallet wallet = await _context.Wallets.FirstOrDefaultAsync(x => x.AccountNumber == accountNumber && x.Currency == currency);
+
+                return wallet;
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
     }

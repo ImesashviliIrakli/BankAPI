@@ -1,5 +1,6 @@
 ﻿using BankAPI.Domain.Dtos.AuthDtos;
 using BankAPI.Domain.Entities.Auth;
+using BankAPI.Domain.Entities.Bank;
 using BankAPI.Domain.Interfaces.Repositories;
 using BankAPI.Domain.Interfaces.Services;
 using BankAPI.Infrastructure.Data;
@@ -86,9 +87,9 @@ namespace BankAPI.Infrastructure.Services
                     var userToReturn = _context.ApplicationUsers.First(u => u.UserName == registrationRequestDto.Email);
 
                     // Create Wallet
-                    bool createWallet = await _wallet.CreateWallet(userToReturn.Id);
+                    List<Wallet> newWallets = await _wallet.CreateWallet(userToReturn.Id);
 
-                    if (!createWallet)
+                    if (newWallets.Count() == 0)
                     {
                         return "Could not create wallet";
                     }

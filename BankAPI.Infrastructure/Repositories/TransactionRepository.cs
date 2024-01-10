@@ -1,44 +1,52 @@
-﻿using BankAPI.Domain.Dtos;
+﻿using AutoMapper;
+using BankAPI.Domain.Dtos;
+using BankAPI.Domain.Dtos.BankDtos;
 using BankAPI.Domain.Entities.Bank;
+using BankAPI.Domain.Enums;
 using BankAPI.Domain.Interfaces.Repositories;
 using BankAPI.Infrastructure.Data;
-using System.Reflection.Metadata.Ecma335;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankAPI.Infrastructure.Repositories
 {
     public class TransactionRepository : ITransactionRepository
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
         protected ResponseDto _response;
-        public TransactionRepository(ApplicationDbContext context)
+        public TransactionRepository(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
             _response = new();
         }
 
-        public async Task<ResponseDto> Deposit(Transaction transaction)
+        #region Process Transaction
+        public async Task<ResponseDto> ProcessTransaction(Transaction transaction, TransactionType transactionType)
         {
             try
             {
                 // Register Transaction
                 await _context.Transactions.AddAsync(transaction);
 
-                // Update Wallet
-                Wallet userWallet = _context.Wallets.FirstOrDefault(x => x.AccountNumber == transaction.AccountNumber && x.Currency == transaction.Currency);
+                ResponseDto resposnse = new();
 
-                if (userWallet != null)
+                // Main Logic
+                switch (transactionType)
                 {
-                    userWallet.CurrentBalance += transaction.Amount;
+                    case TransactionType.Deposit:
+                        {
+                            await Deposit(transaction);
 
-                    _context.Wallets.Update(userWallet);
+                            return _response;
+                        }
+                    case TransactionType.Withdraw:
+                        {
+                            await Withdraw(transaction);
 
-                    await _context.SaveChangesAsync();
-
-                    _response.Result = userWallet;
+                            return _response;
+                        }
                 }
-
-                _response.IsSuccess = false;
-                _response.Message = "Could not find wallet";
             }
             catch (Exception ex)
             {
@@ -48,20 +56,48 @@ namespace BankAPI.Infrastructure.Repositories
 
             return _response;
         }
-
-        public async Task<ResponseDto> Withdraw(Transaction transaction)
+        private async Task Deposit(Transaction transaction)
         {
             try
             {
-                // Get Wallet
-                Wallet userWallet = _context.Wallets.FirstOrDefault(x => x.AccountNumber == transaction.AccountNumber && x.Currency == transaction.Currency);
+                // Update Wallet
+                Wallet userWallet = await _context.Wallets.FirstOrDefaultAsync(x => x.AccountNumber == transaction.AccountNumber && x.Currency == transaction.Currency);
 
                 if (userWallet == null)
                 {
                     _response.IsSuccess = false;
                     _response.Message = "Could not find wallet";
 
-                    return _response;
+                    return;
+                }
+
+                userWallet.CurrentBalance += transaction.Amount;
+
+                _context.Wallets.Update(userWallet);
+
+                await _context.SaveChangesAsync();
+
+                _response.Result = userWallet;
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.Message = ex.Message;
+            }
+        }
+        private async Task Withdraw(Transaction transaction)
+        {
+            try
+            {
+                // Get Wallet
+                Wallet userWallet = await _context.Wallets.FirstOrDefaultAsync(x => x.AccountNumber == transaction.AccountNumber && x.Currency == transaction.Currency);
+
+                if (userWallet == null)
+                {
+                    _response.IsSuccess = false;
+                    _response.Message = "Could not find wallet";
+
+                    return;
                 }
 
                 if (transaction.Amount > userWallet.CurrentBalance)
@@ -69,14 +105,10 @@ namespace BankAPI.Infrastructure.Repositories
                     _response.IsSuccess = false;
                     _response.Message = "You don't have enough funds";
 
-                    return _response;
+                    return;
                 }
 
-                // Register Transaction
-                await _context.Transactions.AddAsync(transaction);
-
                 // Update Wallet
-
                 userWallet.CurrentBalance -= transaction.Amount;
 
                 _context.Wallets.Update(userWallet);
@@ -84,24 +116,23 @@ namespace BankAPI.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
 
                 _response.Result = userWallet;
-
             }
             catch (Exception ex)
             {
                 _response.IsSuccess = false;
                 _response.Message = ex.Message;
             }
-            return _response;
         }
+
+        #endregion
 
         public async Task<ResponseDto> TransferByAccountNumber(Transaction transaction)
         {
             try
             {
                 // Get Main User Wallet
-                Wallet mainUser = _context.Wallets.FirstOrDefault(x => x.AccountNumber == transaction.AccountNumber && x.Currency == transaction.Currency);
-
-                Wallet remoteUser = _context.Wallets.FirstOrDefault(x => x.AccountNumber == transaction.RemoteAccountNumber && x.Currency == transaction.Currency);
+                Wallet mainUser = await _context.Wallets.FirstOrDefaultAsync(x => x.AccountNumber == transaction.AccountNumber && x.Currency == transaction.Currency);
+                Wallet remoteUser = await _context.Wallets.FirstOrDefaultAsync(x => x.AccountNumber == transaction.RemoteAccountNumber && x.Currency == transaction.Currency);
 
                 // Error Handling
                 if (mainUser == null || remoteUser == null)
@@ -111,7 +142,6 @@ namespace BankAPI.Infrastructure.Repositories
 
                     return _response;
                 }
-
 
                 if (transaction.Amount > mainUser.CurrentBalance)
                 {
@@ -128,12 +158,14 @@ namespace BankAPI.Infrastructure.Repositories
                 mainUser.CurrentBalance -= transaction.Amount;
                 remoteUser.CurrentBalance += transaction.Amount;
 
-                List<Wallet> wallets = new List<Wallet> { mainUser, remoteUser };
+                List<Wallet> walletsToUpdate = new List<Wallet> { mainUser, remoteUser };
 
-                _context.Wallets.UpdateRange(wallets);
+                _context.Wallets.UpdateRange(walletsToUpdate);
                 await _context.SaveChangesAsync();
 
-                _response.Result = wallets;
+                List<WalletDto> walletDtos = _mapper.Map<List<WalletDto>>(walletsToUpdate);
+
+                _response.Result = walletDtos;
             }
             catch (Exception ex)
             {

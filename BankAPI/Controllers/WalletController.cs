@@ -47,13 +47,13 @@ namespace BankAPI.Controllers
         }
 
         [HttpGet("GetAccounts/{currency}")]
-        public async Task<IActionResult> GetAccountByCurrency(string currency)
+        public async Task<IActionResult> GetAccountsByCurrency(string currency)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            Wallet wallet = await _wallet.GetAccountByCurrency(userId, currency);
+            List<Wallet> wallets = await _wallet.GetAccountsByCurrency(userId, currency);
 
-            if (wallet == null)
+            if (wallets.Count() == 0)
             {
                 _response.IsSuccess = false;
                 _response.Message = "Could not find wallet";
@@ -61,9 +61,31 @@ namespace BankAPI.Controllers
                 return NotFound(_response);
             }
 
-            WalletDto walletDto = _mapper.Map<WalletDto>(wallet);
+            List<WalletDto> walletDto = _mapper.Map<List<WalletDto>>(wallets);
 
             _response.Result = walletDto;
+
+            return Ok(_response);
+        }
+
+        [HttpPost("CreateWalletNew")]
+        public async Task<IActionResult> CreateWalletNew()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            List<Wallet> newWallets = await _wallet.CreateWallet(userId);
+
+            if (newWallets.Count() == 0)
+            {
+                _response.IsSuccess = false;
+                _response.Message = "Could not create new wallets";
+
+                return BadRequest(_response);
+            }
+
+            List<WalletDto> walletDto = _mapper.Map<List<WalletDto>>(newWallets);
+
+            _response.Result = newWallets;
 
             return Ok(_response);
         }

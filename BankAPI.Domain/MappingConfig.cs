@@ -10,6 +10,7 @@ namespace BankAPI.Domain
         {
             CreateMap<Wallet, WalletDto>().ReverseMap();
             CreateMap<Transaction, TransactionDto>().ReverseMap();
+            CreateMap<DepositWithdrawDto, Transaction>();
         }
     }
 }

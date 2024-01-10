@@ -1,5 +1,4 @@
-﻿using BankAPI.Domain.Enums;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace BankAPI.Domain.Entities.Bank
 {
@@ -9,7 +8,7 @@ namespace BankAPI.Domain.Entities.Bank
         public int Id { get; set; }
         public string UserId { get; set; }
         public string AccountNumber { get; set; }
-        public string RemoteAccountNumber { get; set; }
+        public string RemoteAccountNumber { get; set; } = string.Empty;
         [MaxLength(3)]
         public string Currency { get; set; }
         public decimal Amount { get; set; }
